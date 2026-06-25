@@ -19,5 +19,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    // PKCE: Google OAuth returns ?code=... to our redirect, which we hand to
+    // exchangeCodeForSession. supabase-js stashes the code verifier in storage
+    // (AsyncStorage) between the two calls. Apple's signInWithIdToken is
+    // unaffected by flowType.
+    flowType: 'pkce',
   },
 });
