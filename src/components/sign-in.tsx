@@ -13,6 +13,10 @@ import { supabase } from '@/lib/supabase';
 //  - Google: web OAuth (PKCE). Open Supabase's hosted flow in a browser, get a
 //    ?code=... back on our redirect, exchange it for a session. Works on iOS,
 //    Android, and from a Windows dev machine.
+// MVP ships iOS/Apple-only sign-in. The Google flow below stays intact but gated
+// off; flip this to true (and configure the Google provider) to re-enable it.
+const SHOW_GOOGLE = false;
+
 export default function SignIn() {
   // AppleAuthenticationButton must never render on Android, and only render on
   // iOS versions/devices where the API is actually available.
@@ -93,11 +97,13 @@ export default function SignIn() {
         />
       )}
 
-      <Pressable
-        onPress={handleGoogle}
-        style={({ pressed }) => [styles.button, styles.googleButton, pressed && styles.pressed]}>
-        <Text style={styles.googleText}>Continue with Google</Text>
-      </Pressable>
+      {SHOW_GOOGLE && (
+        <Pressable
+          onPress={handleGoogle}
+          style={({ pressed }) => [styles.button, styles.googleButton, pressed && styles.pressed]}>
+          <Text style={styles.googleText}>Continue with Google</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
