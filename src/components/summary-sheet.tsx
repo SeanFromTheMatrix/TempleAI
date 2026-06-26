@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 
+import BottomSheet from '@/components/bottom-sheet';
 import { Primary, Radius, Temple, Type } from '@/constants/temple';
 import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
@@ -48,14 +48,8 @@ export default function SummarySheet({
   };
 
   return (
-    <Modal transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
-        <SafeAreaView edges={['bottom']} style={styles.sheetWrap}>
-          <View style={styles.sheet}>
-            <View style={styles.grip} />
-
-            <View style={styles.head}>
+    <BottomSheet onClose={onClose}>
+      <View style={styles.head}>
               <View style={styles.headMeta}>
                 <Text style={styles.kicker}>SESSION COMPLETE</Text>
                 <Text style={styles.title}>{session.title}</Text>
@@ -102,26 +96,11 @@ export default function SummarySheet({
                 </Pressable>
               </>
             )}
-          </View>
-        </SafeAreaView>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(44,40,35,0.18)' },
-  sheetWrap: { maxHeight: '90%' },
-  sheet: {
-    backgroundColor: Temple.paper,
-    borderTopLeftRadius: Radius.lg,
-    borderTopRightRadius: Radius.lg,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.two,
-    paddingBottom: Spacing.three,
-  },
-  grip: { width: 42, height: 5, borderRadius: 5, backgroundColor: Temple.inkGhost, alignSelf: 'center', marginBottom: Spacing.three },
   pressed: { opacity: 0.6 },
 
   head: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.three },
