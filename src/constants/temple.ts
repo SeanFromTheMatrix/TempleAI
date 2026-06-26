@@ -34,5 +34,11 @@ export const Radius = {
   pill: 9999,
 } as const;
 
-// Serif italic family for reflective lines / "considering…" (Cormorant in the real build).
+// Serif family for the wordmark + session/headline titles (Cormorant Garamond in the real build;
+// iOS `ui-serif` = New York is a close stand-in until the font files are loaded via expo-font).
+export const Serif = Platform.select({ ios: 'ui-serif', default: 'serif' });
+// Serif italic for reflective lines / "considering…".
 export const SerifItalic = Platform.select({ ios: 'ui-serif', default: 'serif' });
+
+// "Here with you" status dot (calm sage green).
+export const StatusGreen = '#6F9A6A';
