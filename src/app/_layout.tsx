@@ -47,6 +47,7 @@ function RootNavigator() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={!!session && onboarded}>
         <Stack.Screen name="(app)" />
+        <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
       </Stack.Protected>
       <Stack.Protected guard={!!session && !onboarded}>
         <Stack.Screen name="onboarding" />
