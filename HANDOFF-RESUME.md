@@ -1,40 +1,46 @@
-# Temple — resume point (2026-06-26)
+# Temple — resume point (2026-06-26, late)
 
-**Milestone 2 (onboarding) is COMPLETE and VERIFIED end-to-end on the iOS simulator.**
+Everything below is committed + pushed to origin/main. Build runs on the iOS simulator.
 
-## What's done
-- Migration `0002` (goal→text[], add health_connected) **applied to the live DB** via the
-  Supabase Management API. Confirmed: `profiles.goal` is `text[]`, `health_connected` is `boolean`.
-- Full 4-screen onboarding flow (spec §3): welcome → goals → experience+equipment → protect.
-  Progress dots, back chevron, disabled-until-valid Continue, bodyweight-exclusive equipment rule,
-  live note placeholder/reassurance. Screen 4 (Apple Health) deferred per spec.
-  - `src/components/onboarding.tsx`, route `src/app/onboarding.tsx`
-  - `src/lib/profile.tsx` (`useProfile`, `onboarded` from non-empty goal, survives restart)
-  - `src/lib/onboarding.ts` (option lists, `coachingModeForLevel`, `completeOnboarding`)
-  - `src/app/_layout.tsx` (third routing gate: signed-in & !onboarded → onboarding)
-- **Verified:** completed onboarding on sim → wrote `profiles` (goal `["strength","lean","mobility"]`,
-  level `inter`, coaching_mode `refine`, equipment[4], health_connected false) + 3 `issues` rows
-  (lowback/shoulder/chest, severity moderate, note, since). Force-quit + cold relaunch → routes
-  straight to home (onboarded). RLS-scoped writes succeed under the authenticated user.
+## Done & working
+- **M1 auth** (Apple sign-in) + **M2 onboarding** (writes profiles + issues) — verified.
+- **Migrations applied to live DB:** 0002 (goal text[], health_connected), 0003 (issues.active,
+  session_exercises.last + alt jsonb, set_logs.set_index/rir, messages.context). Applied via the
+  Supabase Management API with a fresh `sbp_` token each time (no CLI/cred on the Mac).
+- **Design system ported from the prototype** (`docs/prototype/`): real fonts **Cormorant Garamond +
+  Jost** (expo-font), exact marble/ink/gold palette in `src/constants/temple.ts`.
+- **Nav:** Coach · Today tabs + Settings (modal). Coach is home.
+- **Coach home** (`src/app/(app)/index.tsx`): profile-derived first message (names real goal +
+  injuries), session card reads the **real** session (live done/total), quick-reply chips, composer
+  disabled until the LLM lands.
+- **Seed-on-signup** (`src/lib/seed.ts`): the real data.js Push·Incline session (5 exercises w/
+  cue/last/alt) + coach thread. Idempotent; runs on onboarding + on app entry.
+- **Core loop (M3) — built & largely verified:**
+  - Today renders the real session (cards: target, last, cue, done, Swap→alt+why, ring).
+  - Log sheet (`log-sheet.tsx`): steppers, RIR, set dots, history; each set writes set_logs;
+    final target set marks the lift done. **Verified on device** (logged to done; survived restart).
+  - Summary (`summary-sheet.tsx`): recap + reflection + Save (status='done', appends reflection to
+    the coach thread). Built; Finish→Save not yet tapped through end-to-end.
+  - Shared `BottomSheet` (static backdrop, only the panel slides).
 
-## Open / minor follow-ups
-- The authed home is still the **Expo template** ("Welcome to Expo") — real home screens are a
-  later milestone, not M2.
-- Sim logs show repeated `[CoreGraphics] ... invalid numeric value (NaN)` warnings during render
-  (value ignored, non-fatal). Worth tracking down later — check onboarding/template styles.
-- Per-screen accent hexes (clay/lavender/sage/gold) in `ACCENT` (`src/components/onboarding.tsx`)
-  are an interpretation of the spec's named accents — tune if Sean wants different colors.
-- Migrations are applied via the Supabase Management API with an access token (no CLI/cred stored
-  on the Mac). Token is NOT saved anywhere; provide a fresh `sbp_…` when the next migration is needed.
+## Decisions made
+- **Monetization: hosted subscription (~$9.99/mo), NOT BYOK.** Prompt-caching + model-routing
+  server-side; fair-use cap ~300 turns/mo. Typical-user LLM COGS ~$0.50/mo → ~90%+ margin. The
+  Edge Function stays the only key-holder. (Full unit-economics memo was produced this session.)
 
-## Re-run the app
+## NEXT (in priority order)
+1. **Coach chat (step 5) — the big one. BLOCKED on the Anthropic API key.** Build the Supabase Edge
+   Function `coach/` (assemble memory §7 → Claude → safety guard §7.1 → persist to messages), then
+   the live thread UI + enable the composer. Use prompt caching + Haiku/Sonnet routing per the memo.
+2. **Onboarding screens** still use the old black/white theme — port to Temple fonts/colors (unblocked).
+3. **Tap through Finish → Save** to confirm §6.3 (or grant Terminal Accessibility so the agent can
+   drive simulator taps itself).
+4. Parked (out of current scope): reflection must not reward quitting an unfinished session
+   (Sean's note) — handle in the §7 coach prompt; see memory.
+5. Then M6 Settings polish → internal TestFlight.
+
+## Run it
 ```bash
 cd ~/Documents/Personal/temple
-# Xcode must be 26.2: xcodebuild -version
-npx expo run:ios --device "iPhone 16 Pro"   # Debug + Metro; simulator shares the Mac network
+npx expo run:ios --device "iPhone 16 Pro"   # Debug + Metro; Xcode must be 26.2
 ```
-
-## NEXT — Milestone 3 (core loop)
-Seeded session → log `set_logs` → last target set marks the lift done → summary + coach reflection
-→ Save to history; survives backgrounding/restart. (Then M4 coach Edge Function — needs
-ANTHROPIC_API_KEY in supabase/.env, not yet available.)
