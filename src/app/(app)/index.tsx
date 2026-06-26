@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
@@ -9,6 +9,7 @@ import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
 import { buildCoachIntro } from '@/lib/coach-intro';
 import { useProfile } from '@/lib/profile';
+import { getTodaySession, type TodaySession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 
 // Coach — the home tab (Master Build Spec §5.2, ported from the prototype's coach.jsx).
@@ -38,6 +39,25 @@ export default function CoachScreen() {
   }, [session?.user.id]);
 
   const intro = buildCoachIntro(profile, issueLabels);
+
+  // Today's session for the inline card — refetched on focus so progress stays current
+  // after the user logs sets on the Today tab.
+  const [todaySession, setTodaySession] = useState<TodaySession | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      const userId = session?.user.id;
+      if (!userId) return;
+      let active = true;
+      getTodaySession(userId).then((s) => {
+        if (active) setTodaySession(s);
+      });
+      return () => {
+        active = false;
+      };
+    }, [session?.user.id]),
+  );
+  const total = todaySession?.exercises.length ?? 0;
+  const done = todaySession?.exercises.filter((e) => e.done).length ?? 0;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -77,19 +97,27 @@ export default function CoachScreen() {
         </View>
 
         {/* Today's session card → taps through to Today */}
-        <Pressable
-          onPress={() => router.navigate('/today')}
-          style={({ pressed }) => [styles.sessionCard, pressed && styles.pressed]}>
-          <View style={styles.ring}>
-            <Text style={styles.ringText}>0/5</Text>
-          </View>
-          <View style={styles.sessionMeta}>
-            <Text style={styles.sessionKicker}>{"TODAY'S SESSION"}</Text>
-            <Text style={styles.sessionTitle}>Push · Incline Focus</Text>
-            <Text style={styles.sessionSub}>5 movements · ~48 min</Text>
-          </View>
-          <SymbolView name="chevron.right" tintColor={Temple.inkFaint} size={16} />
-        </Pressable>
+        {todaySession ? (
+          <Pressable
+            onPress={() => router.navigate('/today')}
+            style={({ pressed }) => [styles.sessionCard, pressed && styles.pressed]}>
+            <View style={styles.ring}>
+              <Text style={styles.ringText}>
+                {done}/{total}
+              </Text>
+            </View>
+            <View style={styles.sessionMeta}>
+              <Text style={styles.sessionKicker}>
+                {todaySession.status === 'done' ? 'LAST SESSION' : "TODAY'S SESSION"}
+              </Text>
+              <Text style={styles.sessionTitle}>{todaySession.title}</Text>
+              <Text style={styles.sessionSub}>
+                {total} movements · ~{todaySession.duration ?? 45} min
+              </Text>
+            </View>
+            <SymbolView name="chevron.right" tintColor={Temple.inkFaint} size={16} />
+          </Pressable>
+        ) : null}
       </ScrollView>
 
       {/* Quick replies (spec §5.2; inert until LLM) */}
