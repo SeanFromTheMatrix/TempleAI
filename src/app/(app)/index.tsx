@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 
-import { Accent, Primary, Radius, Serif, StatusGreen, Temple } from '@/constants/temple';
+import { Accent, Primary, Radius, StatusGreen, Temple, Type } from '@/constants/temple';
 import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
 import { buildCoachIntro } from '@/lib/coach-intro';
@@ -122,7 +122,7 @@ export default function CoachScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Temple.paper },
+  safe: { flex: 1, backgroundColor: Temple.marble },
 
   header: {
     flexDirection: 'row',
@@ -132,12 +132,12 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
     paddingBottom: Spacing.three,
   },
-  kicker: { fontSize: 11, letterSpacing: 1.5, color: Temple.inkFaint, fontWeight: '600' },
-  wordmark: { fontFamily: Serif, fontSize: 34, color: Temple.ink, marginTop: 2 },
+  kicker: { fontFamily: Type.bodyMedium, fontSize: 11, letterSpacing: 1.8, color: Temple.inkFaint },
+  wordmark: { fontFamily: Type.display, fontSize: 36, color: Temple.ink, marginTop: 2 },
   headerRight: { alignItems: 'flex-end', gap: Spacing.two },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   statusDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: StatusGreen },
-  statusText: { fontSize: 13, color: Temple.inkFaint },
+  statusText: { fontFamily: Type.body, fontSize: 13, color: Temple.inkFaint },
   pressed: { opacity: 0.6 },
 
   threadScroll: { flex: 1 },
@@ -153,14 +153,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  coachLabel: { fontSize: 11, letterSpacing: 1.5, color: Temple.inkFaint, fontWeight: '600' },
-  coachText: { fontSize: 16, lineHeight: 25, color: Temple.ink },
+  coachLabel: { fontFamily: Type.bodyMedium, fontSize: 11, letterSpacing: 1.8, color: Temple.inkFaint },
+  coachText: { fontFamily: Type.body, fontSize: 16, lineHeight: 25, color: Temple.ink },
 
   sessionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
-    backgroundColor: Temple.paperRaised,
+    backgroundColor: Temple.paper,
     borderColor: Temple.line,
     borderWidth: 0.5,
     borderRadius: Radius.card,
@@ -171,15 +171,15 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     borderWidth: 2.5,
-    borderColor: Primary.base,
+    borderColor: Primary.deep,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ringText: { fontSize: 13, fontWeight: '600', color: Temple.ink },
-  sessionMeta: { flex: 1, gap: 2 },
-  sessionKicker: { fontSize: 10, letterSpacing: 1.2, color: Primary.deep, fontWeight: '700' },
-  sessionTitle: { fontFamily: Serif, fontSize: 20, color: Temple.ink },
-  sessionSub: { fontSize: 13, color: Temple.inkSoft },
+  ringText: { fontFamily: Type.bodyMedium, fontSize: 13, color: Temple.ink },
+  sessionMeta: { flex: 1, gap: 3 },
+  sessionKicker: { fontFamily: Type.bodySemi, fontSize: 10, letterSpacing: 1.4, color: Primary.deep },
+  sessionTitle: { fontFamily: Type.display, fontSize: 22, color: Temple.ink },
+  sessionSub: { fontFamily: Type.body, fontSize: 13, color: Temple.inkSoft },
 
   chipsScroll: { flexGrow: 0 },
   chips: { paddingHorizontal: Spacing.four, gap: Spacing.two, paddingVertical: Spacing.two, alignItems: 'center' },
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
     borderColor: Temple.line,
     borderWidth: 0.5,
   },
-  chipText: { fontSize: 14, color: Temple.inkSoft },
+  chipText: { fontFamily: Type.body, fontSize: 14, color: Temple.inkSoft },
 
   composer: {
     flexDirection: 'row',
@@ -206,10 +206,11 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.four,
-    backgroundColor: Temple.paperRaised,
+    backgroundColor: Temple.paper,
     borderColor: Temple.line,
     borderWidth: 0.5,
     color: Temple.ink,
+    fontFamily: Type.body,
     fontSize: 15,
   },
   send: {
@@ -218,7 +219,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Temple.paperRaised,
+    backgroundColor: Temple.paper,
     borderColor: Temple.line,
     borderWidth: 0.5,
   },

@@ -3,7 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 
-import { Radius, Temple } from '@/constants/temple';
+import { Radius, Temple, Type } from '@/constants/temple';
 import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
 import { GOALS, LEVELS } from '@/lib/onboarding';
@@ -78,7 +78,7 @@ function Row({ label, value, last }: { label: string; value: string; last?: bool
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Temple.paper },
+  safe: { flex: 1, backgroundColor: Temple.marble },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -86,13 +86,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.two,
   },
-  title: { fontSize: 17, fontWeight: '600', color: Temple.ink },
+  title: { fontFamily: Type.display, fontSize: 24, color: Temple.ink },
   spacer: { width: 20 },
   pressed: { opacity: 0.6 },
 
   body: { padding: Spacing.four, gap: Spacing.three },
   card: {
-    backgroundColor: Temple.paperRaised,
+    backgroundColor: Temple.paper,
     borderColor: Temple.line,
     borderWidth: 0.5,
     borderRadius: Radius.card,
@@ -100,14 +100,14 @@ const styles = StyleSheet.create({
   },
   row: { paddingVertical: Spacing.three, flexDirection: 'row', gap: Spacing.three },
   rowBorder: { borderBottomWidth: 0.5, borderBottomColor: Temple.line },
-  rowLabel: { fontSize: 15, color: Temple.inkSoft, width: 100 },
-  rowValue: { fontSize: 15, color: Temple.ink, flex: 1 },
+  rowLabel: { fontFamily: Type.body, fontSize: 15, color: Temple.inkSoft, width: 100 },
+  rowValue: { fontFamily: Type.body, fontSize: 15, color: Temple.ink, flex: 1 },
 
   action: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Temple.paperRaised,
+    backgroundColor: Temple.paper,
     borderColor: Temple.line,
     borderWidth: 0.5,
     borderRadius: Radius.card,
@@ -115,6 +115,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   actionDisabled: { opacity: 0.55 },
-  actionText: { fontSize: 16, fontWeight: '500', color: Temple.ink },
-  soon: { fontSize: 13, color: Temple.inkFaint },
+  actionText: { fontFamily: Type.bodyMedium, fontSize: 16, color: Temple.ink },
+  soon: { fontFamily: Type.body, fontSize: 13, color: Temple.inkFaint },
 });

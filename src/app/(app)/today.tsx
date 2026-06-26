@@ -1,19 +1,19 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Accent, Primary, Radius, SerifItalic, Temple } from '@/constants/temple';
+import { Accent, Primary, Radius, Temple, Type } from '@/constants/temple';
 import { Spacing } from '@/constants/theme';
 
-// Today — the authored session (Master Build Spec §5.3). SCAFFOLD: header copy is the spec's known
-// seed (Push · Incline Focus + the sternum note). The exercise cards render the real card STRUCTURE
-// (name · target · last · cue · done · Swap) but with placeholder content until the seed (step 3) +
-// the prototype's data.js provide the 5 actual movements. Logging (§5.4) is the next slice.
+// Today — the authored session (Master Build Spec §5.3). SCAFFOLD: header copy is the real seed
+// (Push · Incline Focus + the sternum note from data.js). One example card shows the card STRUCTURE
+// (name · target · last · cue · done · Swap); the full 5-movement port + logging (§5.4) lands with
+// the core-loop slice once seeding is wired.
 
 const EXAMPLE_CARD = {
   name: 'Incline Barbell Press',
-  target: '4 × 6 @ 135 lb',
-  last: 'Last: 130 × 6',
-  cue: 'Tuck the elbows; stop short of a deep stretch to spare the sternum.',
+  target: '4 × 5 @ 155 lb',
+  last: 'Last: 150 × 5',
+  cue: 'Elbows ~45°. Stop a hair above a full stretch to protect the sternum.',
 };
 
 export default function TodayScreen() {
@@ -24,8 +24,9 @@ export default function TodayScreen() {
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <View style={styles.headerMeta}>
+              <Text style={styles.kicker}>TODAY'S SESSION</Text>
               <Text style={styles.title}>Push · Incline Focus</Text>
-              <Text style={styles.sub}>5 movements · ~45 min</Text>
+              <Text style={styles.sub}>5 movements · ~48 min</Text>
             </View>
             <View style={styles.ring}>
               <Text style={styles.ringText}>0/5</Text>
@@ -52,11 +53,11 @@ export default function TodayScreen() {
           </View>
         </View>
 
-        {/* Placeholder note for the remaining seeded movements */}
+        {/* Placeholder for the remaining seeded movements */}
         <View style={styles.placeholder}>
           <Text style={styles.placeholderText}>
-            {'Your full authored session loads here once seeding is wired (waiting on the ' +
-              "prototype's data.js for the exact 5 movements, cues, and alternates)."}
+            {'The full 5-movement session loads here once seeding is wired (data.js is in the repo; ' +
+              'needs migration 0003 + the seed write).'}
           </Text>
         </View>
       </ScrollView>
@@ -65,34 +66,29 @@ export default function TodayScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Temple.paper },
+  safe: { flex: 1, backgroundColor: Temple.marble },
   body: { padding: Spacing.four, gap: Spacing.three },
 
   header: { gap: Spacing.three },
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerMeta: { gap: 4, flex: 1 },
-  title: { fontSize: 26, fontWeight: '700', color: Temple.ink, lineHeight: 30 },
-  sub: { fontSize: 14, color: Temple.inkSoft },
+  headerMeta: { gap: 3, flex: 1 },
+  kicker: { fontFamily: Type.bodySemi, fontSize: 10, letterSpacing: 1.4, color: Primary.deep },
+  title: { fontFamily: Type.display, fontSize: 30, color: Temple.ink, lineHeight: 34 },
+  sub: { fontFamily: Type.body, fontSize: 14, color: Temple.inkSoft },
   ring: {
     width: 52,
     height: 52,
     borderRadius: 26,
     borderWidth: 2.5,
-    borderColor: Primary.base,
+    borderColor: Primary.deep,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ringText: { fontSize: 14, fontWeight: '600', color: Temple.ink },
-  note: {
-    fontFamily: SerifItalic,
-    fontStyle: 'italic',
-    fontSize: 16,
-    lineHeight: 23,
-    color: Temple.inkSoft,
-  },
+  ringText: { fontFamily: Type.bodyMedium, fontSize: 14, color: Temple.ink },
+  note: { fontFamily: Type.serifItalic, fontSize: 17, lineHeight: 24, color: Temple.inkSoft },
 
   card: {
-    backgroundColor: Temple.paperRaised,
+    backgroundColor: Temple.paper,
     borderColor: Temple.line,
     borderWidth: 0.5,
     borderRadius: Radius.card,
@@ -100,23 +96,17 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardName: { fontSize: 18, fontWeight: '600', color: Temple.ink, flex: 1 },
+  cardName: { fontFamily: Type.display, fontSize: 20, color: Temple.ink, flex: 1 },
   swap: {
     paddingVertical: 4,
     paddingHorizontal: Spacing.two,
     borderRadius: Radius.pill,
     backgroundColor: Accent.lavender.tint,
   },
-  swapText: { fontSize: 13, color: Accent.lavender.deep, fontWeight: '500' },
-  cardTarget: { fontSize: 16, color: Temple.ink },
-  cardLast: { fontSize: 14, color: Temple.inkFaint },
-  cardCue: {
-    fontFamily: SerifItalic,
-    fontStyle: 'italic',
-    fontSize: 15,
-    lineHeight: 21,
-    color: Temple.inkSoft,
-  },
+  swapText: { fontFamily: Type.bodyMedium, fontSize: 13, color: Accent.lavender.deep },
+  cardTarget: { fontFamily: Type.body, fontSize: 16, color: Temple.ink },
+  cardLast: { fontFamily: Type.body, fontSize: 14, color: Temple.inkFaint },
+  cardCue: { fontFamily: Type.serifItalic, fontSize: 16, lineHeight: 22, color: Temple.inkSoft },
   logButton: {
     marginTop: Spacing.one,
     height: 48,
@@ -125,7 +115,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logText: { fontSize: 15, fontWeight: '600', color: Temple.paper },
+  logText: { fontFamily: Type.bodyMedium, fontSize: 15, color: Temple.marble },
 
   placeholder: {
     borderRadius: Radius.card,
@@ -134,5 +124,5 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     padding: Spacing.three,
   },
-  placeholderText: { fontSize: 14, lineHeight: 20, color: Temple.inkFaint },
+  placeholderText: { fontFamily: Type.body, fontSize: 14, lineHeight: 20, color: Temple.inkFaint },
 });

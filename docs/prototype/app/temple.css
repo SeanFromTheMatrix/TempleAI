@@ -1,0 +1,247 @@
+/* ─────────────────────────────────────────────────────────────
+   TEMPLE — design system
+   Warm marble & limestone. Deep charcoal ink. Soft lightsaber pastels.
+   Cormorant Garamond (display) · Jost (UI). Frosted glass, diffused light.
+   ───────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Jost:wght@300;400;500;600&display=swap');
+
+:root {
+  /* surfaces — warm limestone, never clinical white */
+  --marble:      #f4efe6;
+  --marble-deep: #ece5d8;
+  --paper:       #fbf8f2;
+  --surface:     rgba(252, 250, 244, 0.72);
+  --surface-2:   rgba(252, 250, 244, 0.55);
+
+  /* ink */
+  --ink:        #2c2823;
+  --ink-soft:   #6f685d;
+  --ink-faint:  #a39c8f;
+  --ink-ghost:  #c5bdae;
+
+  /* hairlines */
+  --line:  rgba(44, 40, 35, 0.09);
+  --hair:  rgba(44, 40, 35, 0.06);
+
+  /* lightsaber pastels — shared lightness & chroma, hue varies */
+  --sky:      oklch(0.85 0.055 235);
+  --sage:     oklch(0.85 0.055 150);
+  --lavender: oklch(0.85 0.055 305);
+  --gold:     oklch(0.86 0.060 85);
+
+  /* tints (for soft fills) */
+  --sky-tint:      oklch(0.93 0.030 235);
+  --sage-tint:     oklch(0.93 0.030 150);
+  --lavender-tint: oklch(0.93 0.030 305);
+  --gold-tint:     oklch(0.94 0.035 85);
+
+  /* deepened, luminous versions — for glowing lines & emphasis */
+  --sky-deep:      oklch(0.64 0.125 240);
+  --sage-deep:     oklch(0.62 0.110 152);
+  --lavender-deep: oklch(0.60 0.130 300);
+  --gold-deep:     oklch(0.70 0.110 80);
+
+  /* the active accent (set per-app via --accent / --accent-deep / --accent-tint) */
+  --accent:      var(--sky);
+  --accent-deep: var(--sky-deep);
+  --accent-tint: var(--sky-tint);
+
+  /* diffused light — soft, warm-tinted shadows */
+  --shadow-sm:   0 1px 2px rgba(70, 58, 40, 0.04), 0 4px 14px rgba(70, 58, 40, 0.05);
+  --shadow-md:   0 2px 6px rgba(70, 58, 40, 0.05), 0 14px 38px rgba(70, 58, 40, 0.07);
+  --shadow-lg:   0 4px 12px rgba(70, 58, 40, 0.06), 0 30px 70px rgba(70, 58, 40, 0.10);
+  --shadow-glass:0 1px 1px rgba(255,255,255,0.7) inset, 0 1px 2px rgba(70,58,40,0.04), 0 10px 30px rgba(70,58,40,0.06);
+
+  --radius:   22px;
+  --radius-lg:30px;
+  --radius-sm:14px;
+}
+
+* { box-sizing: border-box; }
+
+.tm-root {
+  font-family: 'Jost', system-ui, sans-serif;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: 0.01em;
+}
+
+/* warm marble field with a soft shaft of light from upper-left,
+   like sun through a high temple window */
+.tm-marble {
+  background:
+    radial-gradient(140% 90% at 18% -10%, rgba(255,255,255,0.85), rgba(255,255,255,0) 46%),
+    radial-gradient(120% 80% at 92% 4%, var(--accent-tint), rgba(255,255,255,0) 40%),
+    linear-gradient(180deg, var(--marble) 0%, var(--marble-deep) 100%);
+}
+
+/* display serif */
+.tm-display {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  line-height: 1.04;
+  color: var(--ink);
+}
+.tm-display-light { font-weight: 400; }
+
+/* frosted glass surface */
+.tm-glass {
+  background: var(--surface);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 0.5px solid rgba(255, 255, 255, 0.6);
+  box-shadow: var(--shadow-glass);
+}
+
+.tm-card {
+  background: var(--paper);
+  border: 0.5px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius);
+}
+
+.tm-divider { height: 1px; background: var(--line); border: 0; width: 100%; }
+
+.tm-kicker {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* hide scrollbars inside the device for cleanliness */
+.tm-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+.tm-scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
+
+/* a soft luminous halo — the "lightsaber" glow, kept gentle */
+@keyframes tm-breathe {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 0.9; }
+}
+/* Entrance motion animates TRANSFORM ONLY — never opacity. A play-pending
+   animation sits at active-phase progress 0 (the `from` keyframe) regardless of
+   fill-mode; if that keyframe set opacity:0 the content would vanish anywhere the
+   compositor isn't ticking (offscreen, print, capture). Transform-only means the
+   worst case is a few px of offset, never invisibility. */
+@keyframes tm-rise {
+  from { transform: translateY(12px); }
+  to   { transform: none; }
+}
+@keyframes tm-fade {
+  from { transform: scale(0.99); }
+  to   { transform: none; }
+}
+@keyframes tm-dash {
+  to { stroke-dashoffset: 0; }
+}
+
+/* NOTE: no backwards/both fill — base state is the visible end-state, so content
+   is never hidden if the animation hasn't (or can't) start (offscreen, print, capture). */
+.tm-rise { animation: tm-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+.tm-fade { animation: tm-fade 0.5s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .tm-rise, .tm-fade { animation: none; }
+}
+
+button.tm-btn {
+  font-family: 'Jost', sans-serif;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+button.tm-btn:active { transform: scale(0.97); }
+
+.tm-tap { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+/* ─────────────────────────────────────────────────────────────
+   IMPERIAL — dark mode. The bridge of a Star Destroyer.
+   Graphite paneling, cold overhead light, a Sith-red console glow.
+   Same bones (Cormorant + Jost, frosted glass), inverted and lit in red.
+   ───────────────────────────────────────────────────────────── */
+.tm-imperial {
+  /* surfaces — graphite & gunmetal, cold not warm */
+  --marble:      #0c0e12;
+  --marble-deep: #06070a;
+  --paper:       #14171d;
+  --surface:     rgba(28, 33, 41, 0.66);
+  --surface-2:   rgba(28, 33, 41, 0.44);
+
+  /* ink — cold console white → dim gray */
+  --ink:        #e6eaf0;
+  --ink-soft:   #9aa3af;
+  --ink-faint:  #6b7480;
+  --ink-ghost:  #3a414b;
+
+  /* hairlines — recessed panel seams catch a little light */
+  --line:  rgba(255, 255, 255, 0.10);
+  --hair:  rgba(255, 255, 255, 0.05);
+
+  /* the accent is forced Sith red — Vader's saber */
+  --accent:      oklch(0.66 0.205 26);
+  --accent-deep: oklch(0.575 0.225 27);
+  --accent-tint: oklch(0.33 0.105 26);
+
+  /* diffused light → hard shadow + faint red bleed */
+  --shadow-sm:   0 1px 2px rgba(0,0,0,0.45), 0 4px 14px rgba(0,0,0,0.42);
+  --shadow-md:   0 2px 6px rgba(0,0,0,0.5), 0 14px 38px rgba(0,0,0,0.52);
+  --shadow-lg:   0 4px 12px rgba(0,0,0,0.55), 0 30px 70px rgba(0,0,0,0.62);
+  --shadow-glass:0 1px 1px rgba(255,255,255,0.05) inset, 0 1px 2px rgba(0,0,0,0.45), 0 14px 34px rgba(0,0,0,0.55);
+}
+
+/* paneled wall: red console glow upper-right, cold overhead light,
+   a low reactor-red underglow, and a faint recessed grid of seams */
+.tm-imperial.tm-marble,
+.tm-imperial .tm-marble {
+  background:
+    radial-gradient(115% 72% at 87% -8%, rgba(255, 46, 46, 0.17), rgba(0,0,0,0) 40%),
+    radial-gradient(130% 80% at 10% -12%, rgba(150, 182, 224, 0.06), rgba(0,0,0,0) 38%),
+    radial-gradient(125% 55% at 50% 122%, rgba(240, 32, 32, 0.11), rgba(0,0,0,0) 52%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.022) 0 1px, rgba(0,0,0,0) 1px 54px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.013) 0 1px, rgba(0,0,0,0) 1px 54px),
+    linear-gradient(180deg, #0c0e12 0%, #06070a 100%);
+}
+
+/* glass picks up a cold rim-light instead of a warm one */
+.tm-imperial .tm-glass {
+  border: 0.5px solid rgba(255, 255, 255, 0.09);
+}
+
+/* a thin scanning hairline at the very top — a viewport HUD edge */
+.tm-imperial .tm-marble::before {
+  content: "";
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, rgba(255,46,46,0) 0%, rgba(255,46,46,0.5) 50%, rgba(255,46,46,0) 100%);
+  pointer-events: none; z-index: 40;
+}
+
+/* ── Auth provider buttons — theme-aware so neither goes invisible ──
+   Marble: Apple = solid dark w/ cream text (the classic). 
+   Imperial: everything's already dark, so Apple inverts to a lit console
+   panel with light text, matching real dark-mode "Sign in with Apple". */
+.tm-provider-dark {
+  color: #f4efe6;
+  background: var(--ink);
+  border: none;
+  box-shadow: 0 8px 24px rgba(44, 40, 35, 0.18);
+}
+.tm-provider-light {
+  color: var(--ink);
+  background: var(--paper);
+  border: 0.5px solid var(--line);
+  box-shadow: var(--shadow-sm);
+}
+.tm-imperial .tm-provider-dark {
+  color: #0c0e12;
+  background: #e9edf3;
+  border: none;
+  box-shadow: 0 0 22px rgba(255, 46, 46, 0.12), 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.tm-imperial .tm-provider-light {
+  color: var(--ink);
+  background: rgba(40, 46, 56, 0.6);
+  border: 0.5px solid rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+}
