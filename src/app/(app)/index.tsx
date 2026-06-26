@@ -84,7 +84,7 @@ export default function CoachScreen() {
             <Text style={styles.ringText}>0/5</Text>
           </View>
           <View style={styles.sessionMeta}>
-            <Text style={styles.sessionKicker}>TODAY'S SESSION</Text>
+            <Text style={styles.sessionKicker}>{"TODAY'S SESSION"}</Text>
             <Text style={styles.sessionTitle}>Push · Incline Focus</Text>
             <Text style={styles.sessionSub}>5 movements · ~48 min</Text>
           </View>

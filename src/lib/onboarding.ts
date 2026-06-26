@@ -1,3 +1,4 @@
+import { seedIfNeeded } from './seed';
 import { supabase } from './supabase';
 
 // Option lists + completion write for the onboarding flow (spec §3).
@@ -120,4 +121,8 @@ export async function completeOnboarding(userId: string, draft: OnboardingDraft)
     });
     if (error) throw error;
   }
+
+  // Seed the authored session + coach thread (§4 "seeds on signup"). Idempotent;
+  // failure here shouldn't block onboarding from completing.
+  await seedIfNeeded(userId);
 }
