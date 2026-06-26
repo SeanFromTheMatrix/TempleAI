@@ -6,7 +6,7 @@ import { SymbolView } from 'expo-symbols';
 import LogSheet from '@/components/log-sheet';
 import SummarySheet from '@/components/summary-sheet';
 import { Accent, Primary, Radius, Temple, Type } from '@/constants/temple';
-import { Spacing } from '@/constants/theme';
+import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
 import { formatTarget, getTodaySession, type SessionExercise, type TodaySession } from '@/lib/session';
 
@@ -187,7 +187,13 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Temple.marble },
   center: { alignItems: 'center', justifyContent: 'center' },
   empty: { fontFamily: Type.body, color: Temple.inkSoft, paddingHorizontal: Spacing.five, textAlign: 'center' },
-  body: { padding: Spacing.four, gap: Spacing.three },
+  body: {
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.four,
+    // Clear the floating native tab bar so the Finish button is reachable.
+    paddingBottom: BottomTabInset + Spacing.five,
+    gap: Spacing.three,
+  },
 
   header: { gap: Spacing.three },
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
