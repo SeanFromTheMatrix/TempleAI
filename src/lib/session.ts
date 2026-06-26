@@ -54,11 +54,15 @@ export async function getTodaySession(userId: string): Promise<TodaySession | nu
   return { ...(sess as Omit<TodaySession, 'exercises'>), exercises: (exercises as SessionExercise[]) ?? [] };
 }
 
-// Bodyweight-plus lifts display their target as "+NN lb" (spec §5.4).
+// Bodyweight-plus lifts display their target/logged weight as "+NN lb" (spec §5.4).
 const PLUS_LIFTS = /\b(dip|pull-?up|chin-?up)\b/i;
+
+export function isBodyweightPlus(movement: string): boolean {
+  return PLUS_LIFTS.test(movement);
+}
 
 export function formatTarget(ex: SessionExercise): string {
   const w = ex.target_weight;
-  const weight = w == null ? '' : PLUS_LIFTS.test(ex.movement) ? ` @ +${w} lb` : ` @ ${w} lb`;
+  const weight = w == null ? '' : isBodyweightPlus(ex.movement) ? ` @ +${w} lb` : ` @ ${w} lb`;
   return `${ex.target_sets ?? '?'} × ${ex.target_reps ?? '?'}${weight}`;
 }

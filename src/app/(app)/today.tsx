@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 
+import LogSheet from '@/components/log-sheet';
+import SummarySheet from '@/components/summary-sheet';
 import { Accent, Primary, Radius, Temple, Type } from '@/constants/temple';
 import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
@@ -14,12 +16,21 @@ import { formatTarget, getTodaySession, type SessionExercise, type TodaySession 
 
 export default function TodayScreen() {
   const { session } = useAuth();
+  const userId = session?.user.id;
   const [data, setData] = useState<TodaySession | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [activeExercise, setActiveExercise] = useState<SessionExercise | null>(null);
+  const [showSummary, setShowSummary] = useState(false);
 
+  // Refresh after logging (called from event handlers, not an effect).
+  const load = useCallback(async () => {
+    if (!userId) return;
+    setData(await getTodaySession(userId));
+  }, [userId]);
+
+  // Initial / dep load — promise-chained so setState never runs synchronously in the effect.
   useEffect(() => {
-    const userId = session?.user.id;
     if (!userId) return;
     let active = true;
     getTodaySession(userId).then((s) => {
@@ -30,7 +41,7 @@ export default function TodayScreen() {
     return () => {
       active = false;
     };
-  }, [session?.user.id]);
+  }, [userId]);
 
   const toggle = (id: string) =>
     setExpanded((prev) => {
@@ -86,9 +97,40 @@ export default function TodayScreen() {
             ex={ex}
             expanded={expanded.has(ex.id)}
             onToggleSwap={() => toggle(ex.id)}
+            onLog={() => setActiveExercise(ex)}
           />
         ))}
+
+        <Pressable
+          onPress={() => setShowSummary(true)}
+          style={({ pressed }) => [styles.finishBtn, pressed && styles.pressed]}>
+          <Text style={styles.finishText}>
+            {done >= total ? 'Finish · all done' : 'Finish session'}
+          </Text>
+        </Pressable>
       </ScrollView>
+
+      {activeExercise ? (
+        <LogSheet
+          exercise={activeExercise}
+          onChanged={load}
+          onClose={() => {
+            setActiveExercise(null);
+            load();
+          }}
+        />
+      ) : null}
+
+      {showSummary ? (
+        <SummarySheet
+          session={data}
+          onClose={() => setShowSummary(false)}
+          onSaved={() => {
+            setShowSummary(false);
+            load();
+          }}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -97,10 +139,12 @@ function ExerciseCard({
   ex,
   expanded,
   onToggleSwap,
+  onLog,
 }: {
   ex: SessionExercise;
   expanded: boolean;
   onToggleSwap: () => void;
+  onLog: () => void;
 }) {
   return (
     <View style={[styles.card, ex.done && styles.cardDone]}>
@@ -131,7 +175,7 @@ function ExerciseCard({
       ) : null}
 
       {!ex.done ? (
-        <Pressable style={({ pressed }) => [styles.logButton, pressed && styles.pressed]}>
+        <Pressable onPress={onLog} style={({ pressed }) => [styles.logButton, pressed && styles.pressed]}>
           <Text style={styles.logText}>Log sets</Text>
         </Pressable>
       ) : null}
@@ -208,4 +252,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logText: { fontFamily: Type.bodyMedium, fontSize: 15, color: Temple.marble },
+
+  finishBtn: {
+    marginTop: Spacing.two,
+    height: 54,
+    borderRadius: Radius.pill,
+    borderWidth: 0.5,
+    borderColor: Primary.deep,
+    backgroundColor: Primary.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  finishText: { fontFamily: Type.bodyMedium, fontSize: 16, color: Primary.deep },
 });
