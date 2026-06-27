@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,8 +13,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SymbolView } from 'expo-symbols';
 
-import { Fonts, Spacing } from '@/constants/theme';
+import { Accent, Radius, Temple, Type } from '@/constants/temple';
+import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
 import {
   EQUIPMENT,
@@ -24,21 +28,20 @@ import {
   type Option,
 } from '@/lib/onboarding';
 import { useProfile } from '@/lib/profile';
-import { useTheme } from '@/hooks/use-theme';
 
-// Per-screen accent (spec §3): experience = lavender, equipment = sage, protect = gold.
-// Goals gets a warm clay to stay distinct. Selection state tints with the accent.
-const ACCENT = {
-  goals: '#B07A5A',
-  experience: '#8E7CC3',
-  equipment: '#7E9B6E',
-  protect: '#C0A04A',
-} as const;
+// Onboarding — the threshold of the temple. Ported 1:1 from the prototype's app/onboarding.jsx
+// onto the Temple design system (marble field, Cormorant + Jost, the four lightsaber-pastel
+// accents). Sky is onboarding's signature (spark · breathe glow · primary button · dots); each
+// step's cards take their own hue: goals = sky, experience = lavender, protect = gold, equipment
+// pills = sage — matching the prototype's per-section coloring.
 
-const LAST_STEP = 3; // screens 0–3 are built; screen 4 (Apple Health) is deferred.
+type AccentSet = (typeof Accent)[keyof typeof Accent];
+
+const ONB = Accent.sky; // the welcome spark, breathe glow, primary button, progress dots
+
+const LAST_STEP = 3; // screens 0–3 are built; the prototype's screen 4 (Apple Health) is deferred.
 
 export default function Onboarding() {
-  const theme = useTheme();
   const { session } = useAuth();
   const { refresh } = useProfile();
 
@@ -100,11 +103,11 @@ export default function Onboarding() {
     }
   };
 
-  const accent =
-    step === 1 ? ACCENT.goals : step === 2 ? ACCENT.experience : step === 3 ? ACCENT.protect : theme.text;
-
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      {/* Soft shaft of light from the upper-left, like sun through a high temple window */}
+      <View pointerEvents="none" style={styles.lightShaft} />
+
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -114,38 +117,24 @@ export default function Onboarding() {
             <Pressable
               hitSlop={12}
               onPress={() => setStep((s) => Math.max(0, s - 1))}
-              style={({ pressed }) => pressed && styles.pressed}>
-              <Text style={[styles.chevron, { color: theme.textSecondary }]}>‹</Text>
+              style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}>
+              <SymbolView name="chevron.left" tintColor={Temple.inkSoft} size={18} />
             </Pressable>
           ) : (
-            <View style={styles.chevronSpacer} />
+            <View style={styles.backSpacer} />
           )}
-          <View style={styles.dots}>
-            {[0, 1, 2, 3].map((i) => (
-              <View
-                key={i}
-                style={[
-                  styles.dot,
-                  { backgroundColor: theme.backgroundSelected },
-                  i === step && { backgroundColor: accent, width: Spacing.four },
-                ]}
-              />
-            ))}
-          </View>
-          <View style={styles.chevronSpacer} />
+          <ProgressDots step={step} total={LAST_STEP + 1} />
+          <View style={styles.backSpacer} />
         </View>
 
         <ScrollView
           contentContainerStyle={styles.body}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
-          {step === 0 && <Welcome theme={theme} />}
-          {step === 1 && (
-            <GoalsStep theme={theme} accent={accent} selected={goals} onToggle={toggleGoal} />
-          )}
+          {step === 0 && <Welcome />}
+          {step === 1 && <GoalsStep selected={goals} onToggle={toggleGoal} />}
           {step === 2 && (
             <ExperienceStep
-              theme={theme}
               level={level}
               onLevel={setLevel}
               equipment={equipment}
@@ -154,8 +143,6 @@ export default function Onboarding() {
           )}
           {step === 3 && (
             <ProtectStep
-              theme={theme}
-              accent={accent}
               regions={regions}
               onToggleRegion={toggleRegion}
               note={note}
@@ -164,68 +151,119 @@ export default function Onboarding() {
           )}
         </ScrollView>
 
-        {/* Footer: caption (welcome only) + primary button */}
+        {/* Footer: primary button + caption (welcome only) */}
         <View style={styles.footer}>
-          {step === 0 && (
-            <Text style={[styles.caption, { color: theme.textSecondary }]}>
-              Four quiet questions. Under a minute.
-            </Text>
-          )}
           <Pressable
             disabled={!canContinue || saving}
             onPress={onPrimary}
             style={({ pressed }) => [
               styles.primaryButton,
-              { backgroundColor: theme.text },
               (!canContinue || saving) && styles.primaryDisabled,
               pressed && styles.pressed,
             ]}>
-            <Text style={[styles.primaryText, { color: theme.background }]}>
+            <Text style={styles.primaryText}>
               {saving ? 'Saving…' : step === 0 ? 'Begin' : 'Continue'}
             </Text>
           </Pressable>
+          {step === 0 && (
+            <Text style={styles.caption}>Four quiet questions. Under a minute.</Text>
+          )}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-type Theme = ReturnType<typeof useTheme>;
+// ————————————————————————————— Progress dots —————————————————————————————
+function ProgressDots({ step, total }: { step: number; total: number }) {
+  return (
+    <View style={styles.dots}>
+      {Array.from({ length: total }).map((_, i) => (
+        <View
+          key={i}
+          style={[
+            styles.dot,
+            i === step && {
+              width: 22,
+              backgroundColor: ONB.deep,
+              shadowColor: ONB.base,
+              shadowOpacity: 0.9,
+              shadowRadius: 5,
+              shadowOffset: { width: 0, height: 0 },
+            },
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
 
-// ————————————————————————————— Screen 0 —————————————————————————————
-function Welcome({ theme }: { theme: Theme }) {
+// ————————————————————————————— Screen 0 · Welcome —————————————————————————————
+function Welcome() {
+  // A gentle luminous halo behind the mark — the "lightsaber" breathe, kept soft.
+  const breathe = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(breathe, {
+          toValue: 1,
+          duration: 2000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(breathe, {
+          toValue: 0,
+          duration: 2000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [breathe]);
+
+  const glowStyle = {
+    opacity: breathe.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0.9] }),
+    transform: [
+      { scale: breathe.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.06] }) },
+    ],
+  };
+
   return (
     <View style={styles.welcome}>
-      <Kicker theme={theme}>Welcome</Kicker>
-      <Text style={[styles.brand, { color: theme.text }]}>TEMPLE</Text>
-      <Text style={[styles.serif, { color: theme.textSecondary }]}>
+      <View style={styles.markWrap}>
+        <Animated.View style={[styles.markGlow, glowStyle]} />
+        <SymbolView name="sparkle" tintColor={ONB.deep} size={48} />
+      </View>
+      <Text style={styles.kickerCenter}>WELCOME</Text>
+      <Text style={styles.brand}>TEMPLE</Text>
+      <Text style={styles.serif}>
         A coach for the long path. Calm, honest, and built around you.
       </Text>
     </View>
   );
 }
 
-// ————————————————————————————— Screen 1 —————————————————————————————
+// ————————————————————————————— Screen 1 · Goals —————————————————————————————
 function GoalsStep({
-  theme,
-  accent,
   selected,
   onToggle,
 }: {
-  theme: Theme;
-  accent: string;
   selected: string[];
   onToggle: (id: string) => void;
 }) {
   return (
     <View style={styles.section}>
-      <StepHeading theme={theme} title="What brings you here?" sub="Choose all that ring true. We'll shape everything around them." />
+      <StepHeading
+        title="What brings you here?"
+        sub="Choose all that ring true. We'll shape everything around them."
+      />
       <View style={styles.cards}>
         {GOALS.map((g) => (
           <OptionRow
             key={g.id}
-            theme={theme}
-            accent={accent}
+            accent={Accent.sky}
             label={g.label}
             desc={g.desc}
             selected={selected.includes(g.id)}
@@ -237,15 +275,13 @@ function GoalsStep({
   );
 }
 
-// ————————————————————————————— Screen 2 —————————————————————————————
+// ————————————————————————————— Screen 2 · Experience + Equipment —————————————————————————————
 function ExperienceStep({
-  theme,
   level,
   onLevel,
   equipment,
   onToggleEquipment,
 }: {
-  theme: Theme;
   level: string | null;
   onLevel: (id: string) => void;
   equipment: string[];
@@ -254,7 +290,6 @@ function ExperienceStep({
   return (
     <View style={styles.section}>
       <StepHeading
-        theme={theme}
         title="Where are you on the path?"
         sub="This sets how much the coach leads versus assists."
       />
@@ -262,8 +297,7 @@ function ExperienceStep({
         {LEVELS.map((l) => (
           <OptionRow
             key={l.id}
-            theme={theme}
-            accent={ACCENT.experience}
+            accent={Accent.lavender}
             label={l.label}
             desc={l.desc}
             selected={level === l.id}
@@ -272,15 +306,12 @@ function ExperienceStep({
         ))}
       </View>
 
-      <Kicker theme={theme} style={styles.equipKicker}>
-        {"What's available to you"}
-      </Kicker>
+      <Kicker style={styles.equipKicker}>What's available to you</Kicker>
       <View style={styles.pills}>
         {EQUIPMENT.map((item) => (
           <Pill
             key={item}
-            theme={theme}
-            accent={ACCENT.equipment}
+            accent={Accent.sage}
             label={item}
             selected={equipment.includes(item)}
             onPress={() => onToggleEquipment(item)}
@@ -291,17 +322,13 @@ function ExperienceStep({
   );
 }
 
-// ————————————————————————————— Screen 3 —————————————————————————————
+// ————————————————————————————— Screen 3 · Protect —————————————————————————————
 function ProtectStep({
-  theme,
-  accent,
   regions,
   onToggleRegion,
   note,
   onNote,
 }: {
-  theme: Theme;
-  accent: string;
   regions: Option[];
   onToggleRegion: (r: Option) => void;
   note: string;
@@ -319,7 +346,6 @@ function ProtectStep({
   return (
     <View style={styles.section}>
       <StepHeading
-        theme={theme}
         title="Anything to protect?"
         sub="Flag what needs care. The coach will train around it — and you can always say more later."
       />
@@ -327,61 +353,61 @@ function ProtectStep({
         {REGIONS.map((r) => (
           <Pill
             key={r.id}
-            theme={theme}
-            accent={accent}
+            accent={Accent.gold}
             label={r.label}
+            dot
             selected={regions.some((x) => x.id === r.id)}
             onPress={() => onToggleRegion(r)}
           />
         ))}
       </View>
 
-      <Kicker theme={theme} style={styles.equipKicker}>
-        In your own words · optional
-      </Kicker>
-      <TextInput
-        value={note}
-        onChangeText={onNote}
-        placeholder={placeholder}
-        placeholderTextColor={theme.textSecondary}
-        multiline
-        style={[
-          styles.textarea,
-          { backgroundColor: theme.backgroundElement, color: theme.text },
-        ]}
-      />
+      <Kicker style={styles.equipKicker}>In your own words · optional</Kicker>
+      <View
+        style={[styles.noteCard, note.trim().length > 0 && { borderColor: ONB.base }]}>
+        <TextInput
+          value={note}
+          onChangeText={onNote}
+          placeholder={placeholder}
+          placeholderTextColor={Temple.inkFaint}
+          multiline
+          style={styles.noteInput}
+        />
+      </View>
 
-      <Text style={[styles.serif, styles.reassurance, { color: theme.textSecondary }]}>
-        {reassurance}
-      </Text>
+      {/* Glass reassurance card with the coach's spark */}
+      <View style={styles.reassureCard}>
+        <View style={styles.reassureSpark}>
+          <SymbolView name="sparkle" tintColor={ONB.deep} size={16} />
+        </View>
+        <Text style={styles.reassureText}>{reassurance}</Text>
+      </View>
     </View>
   );
 }
 
 // ————————————————————————————— shared bits —————————————————————————————
-function StepHeading({ theme, title, sub }: { theme: Theme; title: string; sub: string }) {
+function StepHeading({ title, sub }: { title: string; sub: string }) {
   return (
     <View style={styles.heading}>
-      <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
-      <Text style={[styles.sub, { color: theme.textSecondary }]}>{sub}</Text>
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.sub}>{sub}</Text>
     </View>
   );
 }
 
-function Kicker({ theme, children, style }: { theme: Theme; children: string; style?: any }) {
-  return <Text style={[styles.kicker, { color: theme.textSecondary }, style]}>{children}</Text>;
+function Kicker({ children, style }: { children: string; style?: any }) {
+  return <Text style={[styles.kicker, style]}>{children}</Text>;
 }
 
 function OptionRow({
-  theme,
   accent,
   label,
   desc,
   selected,
   onPress,
 }: {
-  theme: Theme;
-  accent: string;
+  accent: AccentSet;
   label: string;
   desc?: string;
   selected: boolean;
@@ -392,37 +418,35 @@ function OptionRow({
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
-        { backgroundColor: theme.backgroundElement, borderColor: 'transparent' },
-        selected && { borderColor: accent, backgroundColor: accent + '1F' },
+        selected && { borderColor: accent.base, backgroundColor: accent.tint },
         pressed && styles.pressed,
       ]}>
       <View style={styles.cardText}>
-        <Text style={[styles.cardLabel, { color: theme.text }]}>{label}</Text>
-        {desc ? <Text style={[styles.cardDesc, { color: theme.textSecondary }]}>{desc}</Text> : null}
+        <Text style={styles.cardLabel}>{label}</Text>
+        {desc ? <Text style={styles.cardDesc}>{desc}</Text> : null}
       </View>
       <View
         style={[
           styles.check,
-          { borderColor: theme.backgroundSelected },
-          selected && { borderColor: accent, backgroundColor: accent },
+          selected && { borderColor: accent.deep, backgroundColor: accent.deep },
         ]}>
-        {selected ? <Text style={styles.checkMark}>✓</Text> : null}
+        {selected ? <SymbolView name="checkmark" tintColor="#fff" size={13} /> : null}
       </View>
     </Pressable>
   );
 }
 
 function Pill({
-  theme,
   accent,
   label,
   selected,
+  dot,
   onPress,
 }: {
-  theme: Theme;
-  accent: string;
+  accent: AccentSet;
   label: string;
   selected: boolean;
+  dot?: boolean;
   onPress: () => void;
 }) {
   return (
@@ -430,20 +454,38 @@ function Pill({
       onPress={onPress}
       style={({ pressed }) => [
         styles.pill,
-        { backgroundColor: theme.backgroundElement, borderColor: 'transparent' },
-        selected && { borderColor: accent, backgroundColor: accent + '1F' },
+        selected && { borderColor: accent.base, backgroundColor: accent.tint },
         pressed && styles.pressed,
       ]}>
-      <Text style={[styles.pillText, { color: selected ? theme.text : theme.textSecondary }]}>
-        {label}
-      </Text>
+      {dot && selected ? (
+        <View
+          style={[
+            styles.pillDot,
+            { backgroundColor: accent.deep, shadowColor: accent.base },
+          ]}
+        />
+      ) : null}
+      <Text style={[styles.pillText, selected && { color: Temple.ink }]}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
+  safe: { flex: 1, backgroundColor: Temple.marble },
   flex: { flex: 1 },
+
+  lightShaft: {
+    position: 'absolute',
+    top: -40,
+    left: '12%',
+    width: 170,
+    height: 340,
+    backgroundColor: 'rgba(255,255,255,0.45)',
+    borderRadius: 120,
+    transform: [{ rotate: '18deg' }],
+    opacity: 0.7,
+  },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -452,56 +494,106 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
     paddingBottom: Spacing.three,
   },
-  chevron: { fontSize: 34, lineHeight: 34, fontWeight: '300' },
-  chevronSpacer: { width: 24 },
-  dots: { flexDirection: 'row', gap: Spacing.two, alignItems: 'center' },
-  dot: { width: Spacing.two, height: Spacing.two, borderRadius: Spacing.one },
-  body: {
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.five,
-    flexGrow: 1,
-  },
-  footer: {
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.two,
-    gap: Spacing.three,
-  },
-  caption: { textAlign: 'center', fontSize: 14 },
-  primaryButton: {
-    height: 54,
-    borderRadius: Spacing.three,
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Temple.surface,
+    borderWidth: 0.5,
+    borderColor: Temple.line,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primaryDisabled: { opacity: 0.35 },
-  primaryText: { fontSize: 17, fontWeight: '600' },
+  backSpacer: { width: 40 },
   pressed: { opacity: 0.6 },
 
+  dots: { flexDirection: 'row', gap: 7, alignItems: 'center' },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Temple.inkGhost },
+
+  body: { paddingHorizontal: Spacing.four, paddingBottom: Spacing.five, flexGrow: 1 },
+
+  footer: {
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.three,
+    gap: Spacing.three,
+  },
+  caption: { textAlign: 'center', fontFamily: Type.body, fontSize: 13, color: Temple.inkFaint },
+  primaryButton: {
+    height: 58,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: ONB.deep,
+    shadowColor: ONB.base,
+    shadowOpacity: 0.9,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  primaryDisabled: {
+    backgroundColor: Temple.inkGhost,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  primaryText: {
+    fontFamily: Type.body,
+    fontSize: 16.5,
+    letterSpacing: 0.4,
+    color: '#fff',
+  },
+
   // Welcome
-  welcome: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.three },
-  brand: { fontSize: 52, fontWeight: '700', letterSpacing: 8 },
+  welcome: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.three, paddingHorizontal: Spacing.three },
+  markWrap: {
+    width: 120,
+    height: 120,
+    marginBottom: Spacing.two,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  markGlow: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: ONB.tint,
+  },
+  kickerCenter: {
+    fontFamily: Type.bodyMedium,
+    fontSize: 11,
+    letterSpacing: 2.8,
+    color: Temple.inkFaint,
+  },
+  brand: {
+    fontFamily: Type.display,
+    fontSize: 60,
+    letterSpacing: 6,
+    color: Temple.ink,
+  },
   serif: {
-    fontFamily: Fonts?.serif,
+    fontFamily: Type.serifItalic,
     fontStyle: 'italic',
-    fontSize: 18,
-    lineHeight: 26,
+    fontSize: 21,
+    lineHeight: 29,
     textAlign: 'center',
-    paddingHorizontal: Spacing.three,
+    color: Temple.inkSoft,
+    maxWidth: 300,
   },
 
   // Headings
   section: { gap: Spacing.four, paddingTop: Spacing.two },
   heading: { gap: Spacing.two },
-  title: { fontSize: 30, fontWeight: '700', lineHeight: 36 },
-  sub: { fontSize: 16, lineHeight: 23 },
+  title: { fontFamily: Type.display, fontSize: 38, lineHeight: 42, color: Temple.ink },
+  sub: { fontFamily: Type.bodyLight, fontSize: 14.5, lineHeight: 22, color: Temple.inkSoft },
   kicker: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1,
+    fontFamily: Type.bodyMedium,
+    fontSize: 11,
+    letterSpacing: 2.4,
     textTransform: 'uppercase',
+    color: Temple.inkFaint,
   },
-  equipKicker: { marginTop: Spacing.two },
+  equipKicker: { marginTop: Spacing.two, marginBottom: -Spacing.two },
 
   // Option cards
   cards: { gap: Spacing.two },
@@ -510,40 +602,83 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.three,
     padding: Spacing.three,
-    borderRadius: Spacing.three,
-    borderWidth: 1.5,
+    borderRadius: 18,
+    borderWidth: 0.5,
+    borderColor: Temple.line,
+    backgroundColor: Temple.surface,
   },
   cardText: { flex: 1, gap: 2 },
-  cardLabel: { fontSize: 17, fontWeight: '600' },
-  cardDesc: { fontSize: 14, lineHeight: 19 },
+  cardLabel: { fontFamily: Type.body, fontSize: 16.5, color: Temple.ink },
+  cardDesc: { fontFamily: Type.bodyLight, fontSize: 13, lineHeight: 18, color: Temple.inkSoft },
   check: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    borderWidth: 2,
+    borderWidth: 1.5,
+    borderColor: Temple.inkGhost,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkMark: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
   // Pills
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   pill: {
-    paddingVertical: Spacing.two,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
     paddingHorizontal: Spacing.three,
-    borderRadius: 999,
-    borderWidth: 1.5,
+    borderRadius: Radius.pill,
+    borderWidth: 0.5,
+    borderColor: Temple.line,
+    backgroundColor: Temple.surface,
   },
-  pillText: { fontSize: 15, fontWeight: '500' },
+  pillDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  pillText: { fontFamily: Type.body, fontSize: 14.5, color: Temple.inkSoft },
 
   // Note
-  textarea: {
-    minHeight: 110,
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
-    fontSize: 16,
-    lineHeight: 23,
+  noteCard: {
+    borderRadius: 18,
+    borderWidth: 0.5,
+    borderColor: Temple.line,
+    backgroundColor: Temple.surface,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  noteInput: {
+    minHeight: 84,
+    fontFamily: Type.bodyLight,
+    fontSize: 14.5,
+    lineHeight: 22,
+    color: Temple.ink,
     textAlignVertical: 'top',
   },
-  reassurance: { textAlign: 'left', paddingHorizontal: 0, fontSize: 16 },
+
+  // Reassurance (glass)
+  reassureCard: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    alignItems: 'flex-start',
+    borderRadius: Radius.card,
+    borderWidth: 0.5,
+    borderColor: Temple.line,
+    backgroundColor: Temple.surface,
+    padding: Spacing.three,
+  },
+  reassureSpark: { marginTop: 2 },
+  reassureText: {
+    flex: 1,
+    fontFamily: Type.serifItalic,
+    fontStyle: 'italic',
+    fontSize: 17.5,
+    lineHeight: 24,
+    color: Temple.inkSoft,
+  },
 });
