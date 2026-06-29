@@ -102,9 +102,14 @@ eyeball) → Today/log loop. **Coach chat will error on send until the Edge Func
 4. ✅ **DONE — device check passed** (2026-06-29): Finish→Save + Adjust→Swap/hurt/Skip tapped through on
    the sim; DB writes confirmed via service key. This session's work committed/pushed.
 5. Eyeball the restyled **onboarding** (needs sim signed into iCloud, then sign out in-app).
-6. **Bigger prototype gaps still missing** (see full review): **Progress** tab (e1RM charts),
-   **Circle** (social feed + invite), **Body** tab (injury/soreness map — injuries are written at
-   onboarding but have no viewer/editor yet), **Form Focus Pro** (form check + movement demos),
-   onboarding's **Apple-Health step**. Coach voice/camera + manual add-exercise also deferred.
+6. ✅ **DONE — Body tab** (2026-06-29): anatomical react-native-svg figure (tappable regions),
+   readiness card, check-in panel (sore vs hurt → level/severity), Recovering/Tracked lists.
+   `src/app/(app)/body.tsx` + `src/lib/body.ts` (issues CRUD: kind disambiguates injury/soreness,
+   severity doubles as sore level, soft-clear keeps healed history). Onboarding injuries now have a
+   viewer/editor. Required `react-native-svg` (15.15.4) + a native rebuild. Verified on sim + DB.
+   Apple-Health readiness metrics still deferred (no ConnectHealth card wired yet).
+7. **Bigger prototype gaps still missing**: **Progress** tab (e1RM charts), **Circle** (social feed
+   + invite), **Form Focus Pro** (form check + movement demos), onboarding's **Apple-Health step**.
+   Coach voice/camera + manual add-exercise also deferred.
 7. Parked: reflection must not reward quitting an unfinished session (Sean's note) — handle in §7 prompt.
 8. Then M6 Settings polish → internal TestFlight.
