@@ -1,10 +1,26 @@
-# Temple — resume point (2026-06-27)
+# Temple — resume point (2026-06-29)
 
-⚠️ **This session's work is NOT committed or pushed.** It's all in the working tree (Sean chose
-"don't commit yet" — wants to build/test on the simulator first). Uncommitted: modified
-`HANDOFF-RESUME.md`, `src/app/(app)/index.tsx`, `src/components/onboarding.tsx`; new (untracked)
-`src/lib/coach.ts`, `supabase/functions/`. The `.env` files are gitignored (not in git). On branch
-`main`, even with origin. The "Done & working" section below was committed in prior sessions.
+✅ **This session's work (2026-06-29) is committed** — the Today Adjust sheet (Swap/hurt/Skip) +
+CoachNotice (`today.tsx`), `swapExercise`/`skipExercise` (`session.ts`), and `flagDiscomfort`
+(`coach.ts`). The `.env` files are gitignored. On branch `main` with origin.
+
+✅ **Core loop verified on the iPhone 15 Pro sim (2026-06-29).** Signed in via Apple ID (sim must be
+signed into iCloud first, else `AuthorizationError 1000`). Swap/hurt/Skip exercised; **Finish→Save
+confirmed end-to-end** — checked the live DB with the service key: session `ff7928fb…` flipped to
+`status='done'` and the reflection was appended to the coach thread (`messages`, `context.kind=reflection`).
+Note: the persisted Apple session does NOT survive a fresh sim/app reinstall — you re-hit the sign-in wall.
+
+## Done this session (2026-06-29) — Today core-loop gaps closed
+- **Swap is now real.** The "···" Adjust sheet's *Swap* replaces the exercise in place
+  (`swapExercise` in `src/lib/session.ts`: writes movement/sets/reps/weight/cue, clears `last`+`alt`)
+  and drops the coach's `alt.why` into an inline **CoachNotice** banner. (Was: preview-only "INSTEAD" box.)
+- **"Something doesn't feel right"** (hurt): eases the lift to its alt if one exists, posts a protective notice.
+- **Skip for today**: `skipExercise` deletes the session_exercise (+its set_logs) → drops off the list.
+- RLS confirmed `for all` on session_exercises/set_logs, so update+delete are allowed for the owner.
+- New UI: `ExerciseActionSheet` + `CoachNotice` in `today.tsx`; the per-card "Swap" pill is now an
+  ellipsis Adjust button. `tsc --noEmit` and eslint clean on `src/`.
+- **Finish → Save (§6.3): code path verified by reading** (Today→SummarySheet→saveSession sets
+  status='done' + appends reflection to the thread). **Still needs a device tap-through** on the sim.
 
 ## Done & working
 - **M1 auth** (Apple sign-in) + **M2 onboarding** (writes profiles + issues) — verified.
@@ -82,8 +98,13 @@ eyeball) → Today/log loop. **Coach chat will error on send until the Edge Func
 ## NEXT (in priority order)
 1. ✅ **DONE — simulator build runs** + Coach screen eyeballed (looks great).
 2. ✅ **DONE — coach deployed**, chat verified end-to-end in the app.
-3. **Tap through Finish → Save** to confirm §6.3. ← next up
-4. Eyeball the restyled **onboarding** (needs sim signed into iCloud, then sign out in-app).
-5. Optional: add the prototype's **Apple-Health step 5** to onboarding (visual; HealthKit deferred).
-6. Parked: reflection must not reward quitting an unfinished session (Sean's note) — handle in §7 prompt.
-7. Then **commit/push** (Sean to choose branch vs main) → M6 Settings polish → internal TestFlight.
+3. ✅ **DONE (code) — Swap/Hurt/Skip Adjust sheet** + CoachNotice on Today (2026-06-29).
+4. ✅ **DONE — device check passed** (2026-06-29): Finish→Save + Adjust→Swap/hurt/Skip tapped through on
+   the sim; DB writes confirmed via service key. This session's work committed/pushed.
+5. Eyeball the restyled **onboarding** (needs sim signed into iCloud, then sign out in-app).
+6. **Bigger prototype gaps still missing** (see full review): **Progress** tab (e1RM charts),
+   **Circle** (social feed + invite), **Body** tab (injury/soreness map — injuries are written at
+   onboarding but have no viewer/editor yet), **Form Focus Pro** (form check + movement demos),
+   onboarding's **Apple-Health step**. Coach voice/camera + manual add-exercise also deferred.
+7. Parked: reflection must not reward quitting an unfinished session (Sean's note) — handle in §7 prompt.
+8. Then M6 Settings polish → internal TestFlight.

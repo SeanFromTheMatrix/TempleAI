@@ -1,14 +1,23 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 
+import BottomSheet from '@/components/bottom-sheet';
 import LogSheet from '@/components/log-sheet';
 import SummarySheet from '@/components/summary-sheet';
 import { Accent, Primary, Radius, Temple, Type } from '@/constants/temple';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
-import { formatTarget, getTodaySession, type SessionExercise, type TodaySession } from '@/lib/session';
+import { flagDiscomfort } from '@/lib/coach';
+import {
+  formatTarget,
+  getTodaySession,
+  skipExercise,
+  swapExercise,
+  type SessionExercise,
+  type TodaySession,
+} from '@/lib/session';
 
 // Today — the authored session (Master Build Spec §5.3). Reads the seeded session from the DB;
 // done-state + progress come straight from set_logs/session_exercises so they survive force-quit.
@@ -19,9 +28,18 @@ export default function TodayScreen() {
   const userId = session?.user.id;
   const [data, setData] = useState<TodaySession | null>(null);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [activeExercise, setActiveExercise] = useState<SessionExercise | null>(null);
+  const [adjustExercise, setAdjustExercise] = useState<SessionExercise | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [showSummary, setShowSummary] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+
+  // Surface a coach notice and pull it into view — the banner lives at the top, so without this
+  // an action taken on a scrolled-down card reads as a dead tap.
+  const showNotice = (text: string) => {
+    setNotice(text);
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  };
 
   // Refresh after logging (called from event handlers, not an effect).
   const load = useCallback(async () => {
@@ -43,13 +61,46 @@ export default function TodayScreen() {
     };
   }, [userId]);
 
-  const toggle = (id: string) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  // Adjust actions (§5.3). Each mutates the DB, dismisses the sheet, surfaces a coach notice, and reloads.
+  const doSwap = async (ex: SessionExercise) => {
+    setAdjustExercise(null);
+    await swapExercise(ex);
+    showNotice(ex.alt?.why ?? `Swapped ${ex.movement} for a kinder alternative.`);
+    await load();
+  };
+
+  const doHurt = async (ex: SessionExercise) => {
+    setAdjustExercise(null);
+    const easedTo = ex.alt?.movement ?? null;
+    if (ex.alt) {
+      // There's a gentler alternative — ease into it.
+      await swapExercise(ex);
+      showNotice(
+        `Thank you for telling me. I’ve eased ${ex.movement} into ${easedTo} and noted it — ` +
+          `we protect the joint, always.`,
+      );
+    } else {
+      // Already on the gentlest option (or no preset swap): be honest — nothing to ease to here.
+      showNotice(
+        `Noted — I’ve flagged ${ex.movement}. There’s no gentler swap left for it, so tell me more ` +
+          `in Coach and I’ll rework it around you.`,
+      );
+    }
+    // Remember it in the one coach thread so the next coach turn reads the flag (§5.3 / §7).
+    if (userId && data) {
+      await flagDiscomfort(userId, { movement: ex.movement, sessionId: data.id, eased: easedTo });
+    }
+    await load();
+  };
+
+  const doSkip = async (ex: SessionExercise) => {
+    setAdjustExercise(null);
+    await skipExercise(ex);
+    showNotice(
+      `Skipped ${ex.movement}. One movement won’t make or break you — rest it and we go again next time.`,
+    );
+    await load();
+  };
 
   if (loading) {
     return (
@@ -72,7 +123,7 @@ export default function TodayScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <View style={styles.headerMeta}>
@@ -91,12 +142,13 @@ export default function TodayScreen() {
           {data.note ? <Text style={styles.note}>{data.note}</Text> : null}
         </View>
 
+        {notice ? <CoachNotice text={notice} onClose={() => setNotice(null)} /> : null}
+
         {data.exercises.map((ex) => (
           <ExerciseCard
             key={ex.id}
             ex={ex}
-            expanded={expanded.has(ex.id)}
-            onToggleSwap={() => toggle(ex.id)}
+            onAdjust={() => setAdjustExercise(ex)}
             onLog={() => setActiveExercise(ex)}
           />
         ))}
@@ -121,6 +173,16 @@ export default function TodayScreen() {
         />
       ) : null}
 
+      {adjustExercise ? (
+        <ExerciseActionSheet
+          ex={adjustExercise}
+          onClose={() => setAdjustExercise(null)}
+          onSwap={() => doSwap(adjustExercise)}
+          onHurt={() => doHurt(adjustExercise)}
+          onSkip={() => doSkip(adjustExercise)}
+        />
+      ) : null}
+
       {showSummary ? (
         <SummarySheet
           session={data}
@@ -137,13 +199,11 @@ export default function TodayScreen() {
 
 function ExerciseCard({
   ex,
-  expanded,
-  onToggleSwap,
+  onAdjust,
   onLog,
 }: {
   ex: SessionExercise;
-  expanded: boolean;
-  onToggleSwap: () => void;
+  onAdjust: () => void;
   onLog: () => void;
 }) {
   return (
@@ -156,8 +216,12 @@ function ExerciseCard({
             <Text style={styles.doneText}>Done</Text>
           </View>
         ) : (
-          <Pressable onPress={onToggleSwap} style={({ pressed }) => [styles.swap, pressed && styles.pressed]}>
-            <Text style={styles.swapText}>{expanded ? 'Close' : 'Swap'}</Text>
+          <Pressable
+            onPress={onAdjust}
+            hitSlop={8}
+            accessibilityLabel="Adjust this movement"
+            style={({ pressed }) => [styles.adjust, pressed && styles.pressed]}>
+            <SymbolView name="ellipsis" tintColor={Temple.inkSoft} size={20} />
           </Pressable>
         )}
       </View>
@@ -166,20 +230,95 @@ function ExerciseCard({
       {ex.last ? <Text style={styles.cardLast}>Last: {ex.last}</Text> : null}
       {ex.cue ? <Text style={styles.cardCue}>{ex.cue}</Text> : null}
 
-      {expanded && ex.alt ? (
-        <View style={styles.altBox}>
-          <Text style={styles.altKicker}>INSTEAD</Text>
-          <Text style={styles.altName}>{ex.alt.movement}</Text>
-          {ex.alt.why ? <Text style={styles.altWhy}>{ex.alt.why}</Text> : null}
-        </View>
-      ) : null}
-
       {!ex.done ? (
         <Pressable onPress={onLog} style={({ pressed }) => [styles.logButton, pressed && styles.pressed]}>
           <Text style={styles.logText}>Log sets</Text>
         </Pressable>
       ) : null}
     </View>
+  );
+}
+
+// A quiet coach line above the session — how an adjustment was handled (§5.3).
+function CoachNotice({ text, onClose }: { text: string; onClose: () => void }) {
+  return (
+    <View style={styles.notice}>
+      <View style={styles.noticeSpark}>
+        <SymbolView name="sparkle" tintColor={Primary.deep} size={13} />
+      </View>
+      <Text style={styles.noticeText}>{text}</Text>
+      <Pressable onPress={onClose} hitSlop={8} accessibilityLabel="Dismiss" style={({ pressed }) => pressed && styles.pressed}>
+        <SymbolView name="xmark" tintColor={Temple.inkFaint} size={15} />
+      </Pressable>
+    </View>
+  );
+}
+
+// The "···" adjust sheet: swap (when an alternative exists), flag pain, or skip for the day.
+function ExerciseActionSheet({
+  ex,
+  onClose,
+  onSwap,
+  onHurt,
+  onSkip,
+}: {
+  ex: SessionExercise;
+  onClose: () => void;
+  onSwap: () => void;
+  onHurt: () => void;
+  onSkip: () => void;
+}) {
+  const options = [
+    ex.alt
+      ? {
+          id: 'swap',
+          icon: 'arrow.triangle.2.circlepath' as const,
+          title: 'Swap this movement',
+          desc: `Coach suggests ${ex.alt.movement}`,
+          hue: Accent.sky,
+          fn: onSwap,
+        }
+      : null,
+    {
+      id: 'hurt',
+      icon: 'leaf' as const,
+      title: 'Something doesn’t feel right',
+      desc: 'Flag it — I’ll ease this and keep an eye on it',
+      hue: Accent.gold,
+      fn: onHurt,
+    },
+    {
+      id: 'skip',
+      icon: 'arrow.uturn.backward' as const,
+      title: 'Skip for today',
+      desc: 'Remove from this session — no guilt',
+      hue: Accent.lavender,
+      fn: onSkip,
+    },
+  ].filter((o): o is NonNullable<typeof o> => o !== null);
+
+  return (
+    <BottomSheet onClose={onClose}>
+      <Text style={styles.sheetKicker}>ADJUST</Text>
+      <Text style={styles.sheetTitle}>{ex.movement}</Text>
+      <View style={styles.sheetOpts}>
+        {options.map((o) => (
+          <Pressable
+            key={o.id}
+            onPress={o.fn}
+            style={({ pressed }) => [styles.opt, pressed && styles.pressed]}>
+            <View style={[styles.optIcon, { backgroundColor: o.hue.tint, borderColor: o.hue.base }]}>
+              <SymbolView name={o.icon} tintColor={o.hue.deep} size={20} />
+            </View>
+            <View style={styles.optMeta}>
+              <Text style={styles.optTitle}>{o.title}</Text>
+              <Text style={styles.optDesc}>{o.desc}</Text>
+            </View>
+            <SymbolView name="chevron.right" tintColor={Temple.inkGhost} size={16} />
+          </Pressable>
+        ))}
+      </View>
+    </BottomSheet>
   );
 }
 
@@ -224,13 +363,7 @@ const styles = StyleSheet.create({
   cardDone: { opacity: 0.66 },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   cardName: { fontFamily: Type.display, fontSize: 20, color: Temple.ink, flex: 1 },
-  swap: {
-    paddingVertical: 4,
-    paddingHorizontal: Spacing.two,
-    borderRadius: Radius.pill,
-    backgroundColor: Accent.lavender.tint,
-  },
-  swapText: { fontFamily: Type.bodyMedium, fontSize: 13, color: Accent.lavender.deep },
+  adjust: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginRight: -4 },
   donePill: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   doneText: { fontFamily: Type.bodyMedium, fontSize: 13, color: Accent.sage.deep },
   pressed: { opacity: 0.6 },
@@ -239,15 +372,46 @@ const styles = StyleSheet.create({
   cardLast: { fontFamily: Type.body, fontSize: 14, color: Temple.inkFaint },
   cardCue: { fontFamily: Type.serifItalic, fontSize: 16, lineHeight: 22, color: Temple.inkSoft },
 
-  altBox: {
-    backgroundColor: Accent.lavender.tint,
+  // Coach notice banner
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.two,
+    backgroundColor: Temple.surface,
+    borderColor: Temple.line,
+    borderWidth: 0.5,
+    borderRadius: Radius.card,
+    padding: Spacing.three,
+  },
+  noticeSpark: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: Primary.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  noticeText: { flex: 1, fontFamily: Type.serifItalic, fontSize: 16, lineHeight: 22, color: Temple.inkSoft },
+
+  // Adjust action sheet
+  sheetKicker: { fontFamily: Type.bodySemi, fontSize: 10.5, letterSpacing: 1.6, color: Primary.deep },
+  sheetTitle: { fontFamily: Type.display, fontSize: 28, color: Temple.ink, marginTop: 4, marginBottom: Spacing.three },
+  sheetOpts: { gap: Spacing.two },
+  opt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    backgroundColor: Temple.surface,
+    borderColor: Temple.line,
+    borderWidth: 0.5,
     borderRadius: Radius.sm,
     padding: Spacing.three,
-    gap: 4,
   },
-  altKicker: { fontFamily: Type.bodySemi, fontSize: 10, letterSpacing: 1.4, color: Accent.lavender.deep },
-  altName: { fontFamily: Type.bodyMedium, fontSize: 15, color: Temple.ink },
-  altWhy: { fontFamily: Type.serifItalic, fontSize: 15, lineHeight: 21, color: Temple.inkSoft },
+  optIcon: { width: 42, height: 42, borderRadius: 12, borderWidth: 0.5, alignItems: 'center', justifyContent: 'center' },
+  optMeta: { flex: 1, gap: 2 },
+  optTitle: { fontFamily: Type.body, fontSize: 16, color: Temple.ink },
+  optDesc: { fontFamily: Type.body, fontSize: 13, color: Temple.inkSoft },
 
   logButton: {
     marginTop: Spacing.one,
