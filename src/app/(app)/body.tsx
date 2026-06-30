@@ -1,7 +1,7 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, {
   Circle,
@@ -27,6 +27,8 @@ import {
   type Severity,
   type SoreLevel,
 } from '@/lib/body';
+import { connectHealth, getRecovery, type Recovery } from '@/lib/health';
+import { useProfile } from '@/lib/profile';
 
 // Body — daily check-in (Master Build Spec §6). Readiness + an anatomical figure you tap to flag
 // soreness (recovery, fades) or an injury (tracked, the coach protects it). Both persist to the
@@ -178,8 +180,8 @@ function ScreenHeader() {
   );
 }
 
-// Readiness — a single honest line derived from what's flagged (Apple Health metrics deferred).
-function Readiness({ state }: { state: BodyState }) {
+// Readiness — an honest line from what's flagged, plus Apple Health recovery metrics when connected.
+function Readiness({ state, recovery }: { state: BodyState; recovery: Recovery | null }) {
   const { injuries, soreness } = state;
   const sig = injuries.some((i) => i.severity === 'significant');
   const heavy = soreness.some((s) => s.level === 'heavy');
@@ -211,10 +213,47 @@ function Readiness({ state }: { state: BodyState }) {
       <View style={styles.readyTop}>
         <View style={[styles.dot, { backgroundColor: hue.deep }]} />
         <Text style={styles.readyKicker}>TODAY’S READINESS</Text>
+        {recovery ? (
+          <View style={styles.healthTag}>
+            <SymbolView name="heart.fill" tintColor={Temple.inkFaint} size={11} />
+            <Text style={styles.healthTagText}>Apple Health</Text>
+          </View>
+        ) : null}
       </View>
       <Text style={styles.readyWord}>{word}</Text>
       <Text style={styles.readyLine}>{line}</Text>
+      {recovery && recovery.metrics.length ? (
+        <View style={styles.metrics}>
+          {recovery.metrics.map((m) => (
+            <View key={m.id} style={styles.metric}>
+              <Text style={styles.metricLabel}>{m.label}</Text>
+              <View style={styles.metricValueRow}>
+                <Text style={styles.metricValue}>{m.value}</Text>
+                <Text style={styles.metricUnit}>{m.unit}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : null}
     </View>
+  );
+}
+
+// Prompt to wire Apple Health when it isn't connected yet — the gateway to readiness metrics.
+function ConnectHealthCard({ onConnect }: { onConnect: () => void }) {
+  return (
+    <Pressable onPress={onConnect} style={({ pressed }) => [styles.connectCard, pressed && styles.pressed]}>
+      <View style={styles.connectIcon}>
+        <SymbolView name="heart.fill" tintColor={Primary.deep} size={22} />
+      </View>
+      <View style={styles.connectMeta}>
+        <Text style={styles.connectTitle}>Connect Apple Health</Text>
+        <Text style={styles.connectDesc}>
+          Let the coach read your HRV & resting heart rate to set your readiness.
+        </Text>
+      </View>
+      <SymbolView name="chevron.right" tintColor={Primary.deep} size={18} />
+    </Pressable>
   );
 }
 
@@ -264,8 +303,11 @@ export default function BodyScreen() {
   const { session } = useAuth();
   const userId = session?.user.id;
   const router = useRouter();
+  const { profile, refresh } = useProfile();
+  const healthConnected = !!profile?.health_connected;
 
   const [state, setState] = useState<BodyState>({ injuries: [], soreness: [] });
+  const [recovery, setRecovery] = useState<Recovery | null>(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
   const [intent, setIntent] = useState<Intent>(null);
@@ -285,11 +327,23 @@ export default function BodyScreen() {
         setState(s);
         setLoading(false);
       });
+      if (healthConnected) getRecovery().then((r) => active && setRecovery(r));
       return () => {
         active = false;
       };
-    }, [userId]),
+    }, [userId, healthConnected]),
   );
+
+  const doConnectHealth = async () => {
+    if (!userId) return;
+    try {
+      const ok = await connectHealth(userId);
+      await refresh();
+      if (ok) setRecovery(await getRecovery());
+    } catch {
+      Alert.alert('Apple Health', 'Couldn’t connect to Apple Health. You can try again from here.');
+    }
+  };
 
   const region = REGIONS.find((r) => r.id === selected) ?? null;
   const existingInjury = state.injuries.find((i) => i.region === selected);
@@ -358,7 +412,9 @@ export default function BodyScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <ScreenHeader />
-        <Readiness state={state} />
+        <Readiness state={state} recovery={recovery} />
+
+        {!healthConnected ? <ConnectHealthCard onConnect={doConnectHealth} /> : null}
 
         <View style={styles.figureWrap}>
           <BodyFigure marks={marks} selected={selected} onSelect={open} />
@@ -601,6 +657,46 @@ const styles = StyleSheet.create({
   readyKicker: { fontFamily: Type.bodySemi, fontSize: 10, letterSpacing: 1.2, color: Temple.inkFaint },
   readyWord: { fontFamily: Type.display, fontSize: 30, color: Temple.ink, lineHeight: 32 },
   readyLine: { fontFamily: Type.serifItalic, fontSize: 18, lineHeight: 24, color: Temple.inkSoft, marginTop: 5 },
+  healthTag: { flexDirection: 'row', alignItems: 'center', gap: 5, marginLeft: 'auto' },
+  healthTagText: { fontFamily: Type.body, fontSize: 10.5, letterSpacing: 0.6, color: Temple.inkFaint },
+
+  metrics: {
+    flexDirection: 'row',
+    gap: Spacing.three,
+    marginTop: Spacing.three,
+    paddingTop: Spacing.three,
+    borderTopWidth: 1,
+    borderTopColor: Temple.line,
+  },
+  metric: { flex: 1 },
+  metricLabel: { fontFamily: Type.bodySemi, fontSize: 10.5, letterSpacing: 0.8, color: Temple.inkFaint, marginBottom: 4 },
+  metricValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
+  metricValue: { fontFamily: Type.body, fontSize: 20, color: Temple.ink },
+  metricUnit: { fontFamily: Type.body, fontSize: 11, color: Temple.inkFaint },
+
+  connectCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: Temple.paper,
+    borderColor: Temple.line,
+    borderWidth: 0.5,
+    borderRadius: Radius.card,
+    padding: Spacing.three,
+  },
+  connectIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: Primary.tint,
+    borderWidth: 0.5,
+    borderColor: Primary.base,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  connectMeta: { flex: 1, gap: 2 },
+  connectTitle: { fontFamily: Type.body, fontSize: 15.5, color: Temple.ink },
+  connectDesc: { fontFamily: Type.body, fontSize: 12.5, color: Temple.inkSoft },
 
   figureWrap: { alignItems: 'center', paddingVertical: Spacing.two },
 

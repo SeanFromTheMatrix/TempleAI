@@ -37,6 +37,12 @@
             "imageWidth": 76
           }
         }
+      ],
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Temple reads your sleep, heart-rate variability, and resting heart rate to set your daily training readiness."
+        }
       ]
     ],
     "experiments": {

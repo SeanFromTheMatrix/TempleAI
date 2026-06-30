@@ -1,8 +1,43 @@
 # Temple — resume point (2026-06-29)
 
+## ⏳ PICK UP HERE TOMORROW — Apple Health (HealthKit), slice 1, committed as **WIP / UNVERIFIED**
+Code is complete + `tsc`/eslint clean, but **never run/verified** — the native rebuild was still
+compiling when we stopped.
+- **What's built:** `src/lib/health.ts` (`isHealthAvailable`, `connectHealth` → requests read auth +
+  sets `profiles.health_connected`, `getRecovery` → latest **HRV (SDNN)** + **resting HR** via
+  `getMostRecentQuantitySample`). Body screen (`src/app/(app)/body.tsx`) now shows a **Connect Apple
+  Health** card when not connected, and a **recovery metrics row** in the Readiness card when it is.
+- **Library:** `@kingstinct/react-native-healthkit@^14.0.2` + `react-native-nitro-modules@^0.35.10`
+  (Nitro → needs New Arch, which RN 0.85/SDK 56 has). Config plugin + `NSHealthShareUsageDescription`
+  added to `app.json`.
+- **GOTCHA (important):** `expo run:ios` **skipped the config-plugin sync** — the HealthKit Info.plist
+  usage string + entitlement were NOT applied until I ran **`npx expo prebuild -p ios`** explicitly.
+  Confirmed present now in `ios/temple/Info.plist` (`NSHealthShareUsageDescription`) + `temple.entitlements`
+  (`com.apple.developer.healthkit`). `ios/` is gitignored, so after any fresh clone you must
+  `npx expo prebuild -p ios` again before building.
+- **RESUME STEPS:**
+  1. Finish/redo the native build: `export PATH="$HOME/.n/bin:$PATH"; npx expo run:ios --device "iPhone 15 Pro"`.
+  2. On the **Body** tab tap **Connect Apple Health** → grant read access (no crash = plist worked).
+  3. The iOS sim has **no Health data** by default → add some in the sim **Health app** (Browse →
+     Heart → Heart Rate Variability / Resting Heart Rate → Add Data), then revisit Body.
+  4. ✅ Verify the **HRV + Resting HR metrics row** renders on the Readiness card; then **commit as verified**.
+  5. Slice 2 (later): **sleep** (needs sleep-stage aggregation) + **baseline/trend** arrows +
+     readiness-word integration + the **onboarding Apple-Health step**.
+
+## Also still open (parked)
+- **Coach prompt change is committed but NOT deployed** (`8e7297b`, frees up general training knowledge).
+  Needs `functions deploy coach` → give the agent a fresh `sbp_` access token OR run `! supabase login`
+  (no supabase CLI installed on this Mac yet). Until then the live coach still says "I can't look anything up".
+- **Reflection honest-tiers** (`8d2d216`) shipped but never eyeballed on the sim — finish a *partial*
+  session on the re-seeded "Push · Incline Focus" to see the non-trophy copy.
+- **Progress demo data:** 60 `__history` sessions (title=`'__history'`) were backfilled into the live DB
+  via the service key so the charts render — **removable** (`DELETE FROM sessions WHERE title='__history'`).
+
 ✅ **This session's work (2026-06-29) is committed** — the Today Adjust sheet (Swap/hurt/Skip) +
 CoachNotice (`today.tsx`), `swapExercise`/`skipExercise` (`session.ts`), and `flagDiscomfort`
-(`coach.ts`). The `.env` files are gitignored. On branch `main` with origin.
+(`coach.ts`); the **Body tab** (`body.tsx`+`body.ts`); the **Progress tab** (`progress.tsx`+`progress.ts`);
+honest reflection tiers (`summary.ts`); coach-prompt knowledge loosening (`prompt.ts`). The `.env` files
+are gitignored. On branch `main` with origin. Tabs are now: Coach · Today · Body · Progress.
 
 ✅ **Core loop verified on the iPhone 15 Pro sim (2026-06-29).** Signed in via Apple ID (sim must be
 signed into iCloud first, else `AuthorizationError 1000`). Swap/hurt/Skip exercised; **Finish→Save
