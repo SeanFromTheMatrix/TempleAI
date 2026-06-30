@@ -33,14 +33,37 @@ const GOAL_PHRASE: Record<string, string> = {
   rebuild: 'a careful rebuild',
 };
 
+// Honest, not a trophy: the reflection is tiered by what actually happened. Earned praise belongs
+// only to a session carried start-to-finish; a partial is recorded factually (what's done, what's
+// left) and a near-empty one plainly — no spin, but no scolding either. (Skipped lifts are removed
+// from the session at §5.3, so `total` is what was actually on the table after skips.)
 export function buildReflection(profile: Profile | null, stats: SessionStats): string {
   const goal = (profile?.goal?.[0] && GOAL_PHRASE[profile.goal[0]]) || 'the long path';
-  const movements = `${stats.doneExercises} of ${stats.totalExercises} movements`;
-  const sets = `${stats.setsLogged} ${stats.setsLogged === 1 ? 'set' : 'sets'} logged`;
-  return (
-    `${movements}, ${sets}. You trained around what needed protecting and left ego at the door — ` +
-    `that's the patient work that compounds toward ${goal}. Logged and remembered.`
-  );
+  const { doneExercises: done, totalExercises: total, setsLogged } = stats;
+  const sets = `${setsLogged} ${setsLogged === 1 ? 'set' : 'sets'} logged`;
+  const movements = `${done} of ${total} movements`;
+
+  // Nothing actually trained — record it plainly. No spin, no guilt.
+  if (setsLogged === 0 || total === 0) {
+    return `Session closed — nothing logged this time. No spin on it; the work's here when you come back.`;
+  }
+
+  // Carried start to finish — the one place earned praise belongs.
+  if (done >= total) {
+    const head = total === 1 ? `Your one movement, ${sets}` : `All ${total} movements, ${sets}`;
+    return (
+      `${head} — start to finish. ` +
+      `That's the patient work that compounds toward ${goal}. Logged and remembered.`
+    );
+  }
+
+  // Most of it done — acknowledge the work, name what's left, don't dress it up.
+  if (done * 2 >= total) {
+    return `${movements}, ${sets}. Solid chunk done, the rest left on the table — we pick those up next time. Logged.`;
+  }
+
+  // A short one — honest and neutral. Not a trophy, not a telling-off.
+  return `${movements}, ${sets}. A short session today — logged as it was, not dressed up. The rest is waiting when you are.`;
 }
 
 export async function saveSession(
