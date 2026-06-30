@@ -33,6 +33,11 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Label>Body</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="figure" />
       </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="progress">
+        <NativeTabs.Trigger.Label>Progress</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="chart.line.uptrend.xyaxis" />
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
